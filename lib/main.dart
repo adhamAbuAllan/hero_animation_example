@@ -1,122 +1,138 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show timeDilation;
 
-void main() {
-  runApp(const MyApp());
-}
+// This Flutter app demonstrates a radial expansion animation using Hero transitions.
+// Swiping up triggers the transition, and swiping down dismisses the detailed view.
+void main() => runApp(const MaterialApp(home: RadialExpansionDemo(), debugShowCheckedModeBanner: false));
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class Photo extends StatelessWidget {
+  const Photo({super.key, required this.photo, this.onSwipe, this.onSwipeDown});
+  final String photo;
+  final VoidCallback? onSwipe, onSwipeDown;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) => GestureDetector(
+    onPanUpdate: (d) {
+      if (d.delta.dy < -1 && d.delta.dx.abs() < 1) onSwipe?.call();
+      if (d.delta.dy > 5) onSwipeDown?.call();
+    },
+    child: Material(
+      color: Colors.transparent,
+      clipBehavior: Clip.antiAliasWithSaveLayer,
+      child: Image.asset(photo, fit: BoxFit.contain),
+    ),
+  );
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class RadialExpansion extends StatelessWidget {
+  RadialExpansion({super.key, required this.minRadius, required this.maxRadius, this.child})
+      : clipTween = Tween<double>(begin: 2 * minRadius, end: 2 * (maxRadius / math.sqrt2));
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  final double minRadius, maxRadius;
+  final Tween<double> clipTween;
+  final Widget? child;
 
   @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (_, size) {
+      final t = (size.maxWidth / 1.7 - minRadius) / (maxRadius - minRadius);
+      final extent = clipTween.transform(t);
+      return ClipOval(
+        child: Center(
+          child: SizedBox(width: extent, height: extent, child: ClipRect(child: child)),
+        ),
+      );
+    },
+  );
+}
+
+class RadialExpansionDemo extends StatelessWidget {
+  const RadialExpansionDemo({super.key});
+
+  static const kMin = 32.0, kMax = 128.0;
+  static const opacityCurve = Interval(0.0, 0.75, curve: Curves.fastOutSlowIn);
+
+  RectTween _createTween(Rect? a, Rect? b) => MaterialRectCenterArcTween(begin: a, end: b);
+
+  Widget _buildPage(BuildContext c, String img, String text) => Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(colors: [Color(0xFFe0eafc), Color(0xFFcfdef3)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+    ),
+    child: Center(
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        elevation: 12,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            width: kMax * 2,
+            height: kMax * 2,
+            child: Hero(
+              tag: img,
+              createRectTween: _createTween,
+              child: RadialExpansion(
+                minRadius: kMin,
+                maxRadius: kMax,
+                child: Photo(photo: img, onSwipeDown: () => Navigator.pop(c)),
+              ),
             ),
-          ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, fontFamily: 'Roboto')),
+          ),
+          const SizedBox(height: 16),
+        ]),
+      ),
+    ),
+  );
+
+  Widget _buildHero(BuildContext c, String img, String text) => SizedBox(
+    width: kMin * 2,
+    height: kMin * 2,
+    child: Hero(
+      tag: img,
+      createRectTween: _createTween,
+      child: RadialExpansion(
+        minRadius: kMin,
+        maxRadius: kMax,
+        child: Photo(
+          photo: img,
+          onSwipe: () => Navigator.push(
+            c,
+            PageRouteBuilder(
+              pageBuilder: (_, a, __) => AnimatedBuilder(
+                animation: a,
+                builder: (_, __) => Opacity(opacity: opacityCurve.transform(a.value), child: _buildPage(c, img, text)),
+              ),
+            ),
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    timeDilation = 2.0;
+    const imgs = [
+      ['assets/images/chair-alpha.png', 'Chair'],
+      ['assets/images/binoculars-alpha.png', 'Binoculars'],
+      ['assets/images/beachball-alpha.png', 'Beach ball'],
+    ];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Radial Transition Demo', style: TextStyle(fontFamily: 'Roboto')), backgroundColor: const Color(0xff00cb3a)),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(colors: [Color(0xFFe0eafc), Color(0xFFcfdef3)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        ),
+        padding: const EdgeInsets.all(32),
+        alignment: FractionalOffset.bottomLeft,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: imgs.map((e) => _buildHero(context, e[0], e[1])).toList(),
+        ) ,
+      ),
     );
   }
 }
