@@ -1,5 +1,4 @@
 # example_hero_animation
-
-<video width="640" height="360" controls>
-  <source src="https://drive.google.com/uc?export=download&id=1EIk5qmHD-reFMKhdYfyOUhAPQhwkCXj9" type="video/mp4">
-</video>
+<a href="https://drive.google.com/file/d/1EIk5qmHD-reFMKhdYfyOUhAPQhwkCXj9/view">
+  <img src="https://drive.google.com/thumbnail?id=1EIk5qmHD-reFMKhdYfyOUhAPQhwkCXj9" width="640" alt="شاهد الفيديو">
+</a>
